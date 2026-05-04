@@ -70,32 +70,26 @@ Driver assignment is `Auto` by default (follows the mode) but can be locked inde
 
 ---
 
-## Screenshots
-
-*(Drop UI shots here.)*
-
----
-
 ## Install
 
-### Windows
-Grab the latest `BW_BASS_*_Win64.zip` from [Releases](https://github.com/mrnathanhumphrey-droid/BillyWonkaVST/releases) and copy:
+> No prebuilt releases are posted on GitHub yet. Build from source (see below) — the CI workflow also produces Windows + macOS artifacts on every push if you fork it.
 
+Once you have a build, drop the artefacts here:
+
+### Windows
 - `Groove Engine RnB.vst3` → `C:\Program Files\Common Files\VST3\`
 - `Groove Engine RnB.exe` → anywhere (standalone)
 
 Rescan in your DAW. Plugin shows up as **BW BASS** under *BillyWonkaMusic*.
 
 ### macOS (Universal — Intel + Apple Silicon)
-Grab the macOS zip from Releases and either run the included `install.sh`, or copy manually:
-
 - `Groove Engine RnB.vst3` → `~/Library/Audio/Plug-Ins/VST3/`
 - `Groove Engine RnB.component` → `~/Library/Audio/Plug-Ins/Components/`
 - `Groove Engine RnB.app` → `/Applications/`
 
 Restart your DAW and rescan.
 
-**Tested:** Ableton Live, Logic Pro, FL Studio, Reaper.
+**Tested in:** Ableton Live, Logic Pro, FL Studio, Reaper.
 
 ---
 
@@ -166,7 +160,7 @@ MIDI → NoteManager
 
 ## License
 
-Source code: MIT (see `LICENSE`).
+Source code: [MIT](LICENSE).
 JUCE is used under its [own license](JUCE/LICENSE.md).
 
 ---
