@@ -72,17 +72,17 @@ Driver assignment is `Auto` by default (follows the mode) but can be locked inde
 
 ## Install
 
-> No prebuilt releases are posted on GitHub yet. Build from source (see below) — the CI workflow also produces Windows + macOS artifacts on every push if you fork it.
+Grab the latest build from the [**Releases page**](https://github.com/mrnathanhumphrey-droid/BillyWonkaVST/releases/latest).
 
-Once you have a build, drop the artefacts here:
-
-### Windows
-- `Groove Engine RnB.vst3` → `C:\Program Files\Common Files\VST3\`
-- `Groove Engine RnB.exe` → anywhere (standalone)
+### Windows (`BW_BASS_Win64.zip`)
+Unzip and copy:
+- `BW BASS.vst3` → `C:\Program Files\Common Files\VST3\`
+- `BW BASS.exe` → anywhere (standalone)
 
 Rescan in your DAW. Plugin shows up as **BW BASS** under *BillyWonkaMusic*.
 
-### macOS (Universal — Intel + Apple Silicon)
+### macOS (`BW_BASS_macOS.zip` — Universal, Intel + Apple Silicon)
+Unzip and either run the included `install.sh` or copy manually:
 - `Groove Engine RnB.vst3` → `~/Library/Audio/Plug-Ins/VST3/`
 - `Groove Engine RnB.component` → `~/Library/Audio/Plug-Ins/Components/`
 - `Groove Engine RnB.app` → `/Applications/`
