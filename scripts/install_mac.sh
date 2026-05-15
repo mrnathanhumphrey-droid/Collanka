@@ -4,19 +4,20 @@ echo ""
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# VST3
+# VST3 — ditto preserves bundle internals; cp -R strips Sealed Resources
+# (and then launchd refuses to spawn the .app on Apple Silicon).
 VST3_DIR="$HOME/Library/Audio/Plug-Ins/VST3"
 mkdir -p "$VST3_DIR"
 if [ -d "$SCRIPT_DIR/VST3/Collonka.vst3" ]; then
-  cp -R "$SCRIPT_DIR/VST3/Collonka.vst3" "$VST3_DIR/"
+  ditto "$SCRIPT_DIR/VST3/Collonka.vst3" "$VST3_DIR/Collonka.vst3"
   echo "VST3 installed to: $VST3_DIR"
 fi
 
-# AU
+# AU — same bundle-preservation requirement.
 AU_DIR="$HOME/Library/Audio/Plug-Ins/Components"
 mkdir -p "$AU_DIR"
 if [ -d "$SCRIPT_DIR/AU/Collonka.component" ]; then
-  cp -R "$SCRIPT_DIR/AU/Collonka.component" "$AU_DIR/"
+  ditto "$SCRIPT_DIR/AU/Collonka.component" "$AU_DIR/Collonka.component"
   echo "AU installed to: $AU_DIR"
 fi
 

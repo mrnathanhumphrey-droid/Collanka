@@ -133,10 +133,18 @@ jobs:
             ARTS="$ARTS/Release"
           fi
 
-          # Copy bundles preserving structure (handle spaces in names)
-          find "$ARTS" -name "*.vst3" -type d -maxdepth 3 -exec cp -R {} "$DIST/VST3/" \;
-          find "$ARTS" -name "*.component" -type d -maxdepth 3 -exec cp -R {} "$DIST/AU/" \;
-          find "$ARTS" -name "*.app" -type d -maxdepth 3 -exec cp -R {} "$DIST/Standalone/" \;
+          # Copy bundles with ditto so resource forks, xattrs, and code-signature
+          # integrity survive (cp -R strips Sealed Resources -> launchd refuses
+          # to spawn the .app with "RBSRequestErrorDomain Code=5 Launch failed").
+          find "$ARTS" -maxdepth 3 -name "*.vst3" -type d -print0 | while IFS= read -r -d '' src; do
+            ditto "$src" "$DIST/VST3/$(basename "$src")"
+          done
+          find "$ARTS" -maxdepth 3 -name "*.component" -type d -print0 | while IFS= read -r -d '' src; do
+            ditto "$src" "$DIST/AU/$(basename "$src")"
+          done
+          find "$ARTS" -maxdepth 3 -name "*.app" -type d -print0 | while IFS= read -r -d '' src; do
+            ditto "$src" "$DIST/Standalone/$(basename "$src")"
+          done
 
           # Presets
           cp Presets/Factory/*.xml "$DIST/Presets/Factory/"
@@ -151,18 +159,18 @@ jobs:
           # Remove quarantine from all bundles
           xattr -cr "$SCRIPT_DIR" 2>/dev/null || true
 
-          # VST3
+          # VST3 — ditto preserves bundle internals; cp -R strips Sealed Resources.
           VST3_DIR="$HOME/Library/Audio/Plug-Ins/VST3"
           mkdir -p "$VST3_DIR"
           for vst3 in "$SCRIPT_DIR/VST3/"*.vst3; do
-            [ -d "$vst3" ] && cp -R "$vst3" "$VST3_DIR/" && echo "VST3: $(basename "$vst3") → $VST3_DIR"
+            [ -d "$vst3" ] && ditto "$vst3" "$VST3_DIR/$(basename "$vst3")" && echo "VST3: $(basename "$vst3") → $VST3_DIR"
           done
 
-          # AU
+          # AU — same bundle-preservation requirement.
           AU_DIR="$HOME/Library/Audio/Plug-Ins/Components"
           mkdir -p "$AU_DIR"
           for au in "$SCRIPT_DIR/AU/"*.component; do
-            [ -d "$au" ] && cp -R "$au" "$AU_DIR/" && echo "AU: $(basename "$au") → $AU_DIR"
+            [ -d "$au" ] && ditto "$au" "$AU_DIR/$(basename "$au")" && echo "AU: $(basename "$au") → $AU_DIR"
           done
 
           # Reset AU cache so hosts re-scan
