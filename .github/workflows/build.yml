@@ -55,6 +55,7 @@ jobs:
           -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
           -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
+          -DBUILD_AU=OFF
 
       - name: Configure (Windows)
         if: runner.os == 'Windows'
@@ -192,12 +193,33 @@ jobs:
           echo "=== Package contents ==="
           find "$DIST" -type f | head -30
 
-      # ---- Upload ----
+      # ---- Zip on the runner BEFORE upload-artifact ----
+      # actions/upload-artifact tars files internally and macOS xattrs / resource
+      # forks / code-signature integrity do NOT survive that round trip. By
+      # creating the final .zip with `ditto -c -k --sequesterRsrc --keepParent`
+      # on the Mac runner itself, the bundles are sealed inside a single opaque
+      # file that upload/download treat as a blob.
+      - name: Zip for release (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          DIST="dist/${{ matrix.artifact_name }}"
+          ditto -c -k --sequesterRsrc --keepParent "$DIST" "${{ matrix.artifact_name }}.zip"
+          ls -lh "${{ matrix.artifact_name }}.zip"
+
+      - name: Zip for release (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "dist/${{ matrix.artifact_name }}/*" -DestinationPath "${{ matrix.artifact_name }}.zip" -Force
+          Get-Item "${{ matrix.artifact_name }}.zip" | Select-Object Name, Length
+
+      # ---- Upload the zip blob (not the directory) ----
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: dist/${{ matrix.artifact_name }}/
+          path: ${{ matrix.artifact_name }}.zip
           retention-days: 30
 
   # ---- Release (on tag push) ----
@@ -214,16 +236,11 @@ jobs:
         with:
           path: artifacts/
 
-      # Use ditto + zip on macOS to preserve resource forks and bundle structure
-      - name: Zip artifacts
-        run: |
-          for dir in artifacts/*/; do
-            name="$(basename "$dir")"
-            ditto -c -k --sequesterRsrc --keepParent "$dir" "${name}.zip"
-          done
-
+      # Artifacts are already zip blobs created on each build runner with the
+      # OS-native packaging tool (ditto on macOS, Compress-Archive on Windows).
+      # Pass them straight to the release without re-extracting / re-zipping.
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: "*.zip"
+          files: artifacts/**/*.zip
           generate_release_notes: true

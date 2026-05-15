@@ -6,6 +6,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_subdirectory(JUCE)
 
+# AU build hangs on GitHub macOS runners during post-link validation
+# (auval waits for an audio-component registrar that doesn't exist on
+# headless CI). Set -DBUILD_AU=OFF on CI; keep ON for local Mac dev
+# builds where Logic Pro AU support is wanted.
+option(BUILD_AU "Build Audio Unit plugin format (macOS only)" ON)
+set(PLUGIN_FORMATS VST3 Standalone)
+if(BUILD_AU AND APPLE)
+    list(APPEND PLUGIN_FORMATS AU)
+endif()
+
 juce_add_plugin(Collonka
     COMPANY_NAME "BillyWonkaMusic"
     IS_SYNTH TRUE
@@ -16,7 +26,7 @@ juce_add_plugin(Collonka
     COPY_PLUGIN_AFTER_BUILD FALSE
     PLUGIN_MANUFACTURER_CODE Bwmx
     PLUGIN_CODE Clnk
-    FORMATS VST3 AU Standalone
+    FORMATS ${PLUGIN_FORMATS}
     PRODUCT_NAME "Collonka"
     BUNDLE_ID "com.billywonkamusic.collonka"
     MICROPHONE_PERMISSION_ENABLED TRUE
