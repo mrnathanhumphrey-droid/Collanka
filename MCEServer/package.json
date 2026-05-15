@@ -1,7 +1,7 @@
 {
-  "name": "bw-bass-mce-server",
+  "name": "collonka-mce-server",
   "version": "1.0.0",
-  "description": "MCE server bridging BW BASS VST plugin to Claude API",
+  "description": "MCE server bridging Collonka VST plugin to Claude API",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

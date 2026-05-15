@@ -1,7 +1,7 @@
 /**
- * BW BASS MCE Server
+ * Collonka MCE Server
  *
- * A local HTTP server that bridges the BW BASS VST plugin to Claude API.
+ * A local HTTP server that bridges the Collonka VST plugin to Claude API.
  *
  * Endpoints:
  *   GET  /health  — returns { status: "ok" }
@@ -31,7 +31,7 @@ if (!API_KEY) {
 const anthropic = new Anthropic({ apiKey: API_KEY });
 
 // System prompt that gives Claude context about the VST
-const SYSTEM_PROMPT = `You are an AI assistant integrated into the BW BASS synthesizer plugin — a Moog Minimoog-inspired monophonic bass synthesizer for R&B, Neo-Soul, Hip-Hop, and Trap production.
+const SYSTEM_PROMPT = `You are an AI assistant integrated into the Collonka synthesizer plugin — a Moog Minimoog-inspired monophonic bass synthesizer for R&B, Neo-Soul, Hip-Hop, and Trap production.
 
 You help producers shape their bass sounds by:
 - Explaining what parameters do in musical terms
@@ -278,8 +278,8 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, '127.0.0.1', () => {
-    console.log(`\n  BW BASS MCE Server v1.0.0`);
+    console.log(`\n  Collonka MCE Server v1.0.0`);
     console.log(`  Listening on http://127.0.0.1:${PORT}`);
     console.log(`  Claude model: claude-sonnet-4-20250514`);
-    console.log(`\n  Waiting for BW BASS plugin to connect...\n`);
+    console.log(`\n  Waiting for Collonka plugin to connect...\n`);
 });

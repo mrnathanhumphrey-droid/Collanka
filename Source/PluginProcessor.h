@@ -8,7 +8,7 @@
 #include "MidiInjector.h"
 
 /**
- * PluginProcessor — JUCE AudioProcessor for Groove Engine RnB.
+ * PluginProcessor — JUCE AudioProcessor for Collonka.
  *
  * Bridges the JUCE framework with the pure-C++ SynthEngine:
  * - Owns the AudioProcessorValueTreeState (APVTS) for all parameters.
@@ -16,11 +16,11 @@
  * - Pulls parameter values each block and pushes to SynthEngine.
  * - Handles preset save/load via getStateInformation/setStateInformation.
  */
-class GrooveEngineRnBAudioProcessor : public juce::AudioProcessor
+class CollonkaAudioProcessor : public juce::AudioProcessor
 {
 public:
-    GrooveEngineRnBAudioProcessor();
-    ~GrooveEngineRnBAudioProcessor() override;
+    CollonkaAudioProcessor();
+    ~CollonkaAudioProcessor() override;
 
     // --- AudioProcessor interface ---
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
@@ -94,5 +94,11 @@ private:
     juce::SmoothedValue<float> smoothedResonance;
     juce::SmoothedValue<float> smoothedMasterVol;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GrooveEngineRnBAudioProcessor)
+    // Collatz bank loader state — track current k/rule so we only re-look-up on change.
+    int          currentBankK    = -1;
+    int          currentBankRule = -1;
+    const float* currentBankPtr  = nullptr;
+    void reloadCollatzBankIfNeeded(int k, int rule);
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CollonkaAudioProcessor)
 };

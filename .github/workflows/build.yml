@@ -1,4 +1,4 @@
-name: Build BW BASS
+name: Build Collonka
 
 on:
   push:
@@ -17,11 +17,11 @@ jobs:
           - os: windows-latest
             name: Win64
             cmake_generator: Ninja
-            artifact_name: BW_BASS_Win64
+            artifact_name: Collonka_Win64
           - os: macos-14
             name: macOS
             cmake_generator: Ninja
-            artifact_name: BW_BASS_macOS
+            artifact_name: Collonka_macOS
 
     runs-on: ${{ matrix.os }}
     name: Build (${{ matrix.name }})
@@ -70,7 +70,7 @@ jobs:
         shell: bash
         run: |
           # Find artifact root (Ninja single-config: no Release subdir)
-          ARTS="build/GrooveEngineRnB_artefacts"
+          ARTS="build/Collonka_artefacts"
           if [ ! -d "$ARTS/VST3" ] && [ -d "$ARTS/Release/VST3" ]; then
             ARTS="$ARTS/Release"
           fi
@@ -92,7 +92,7 @@ jobs:
 
           # Validate AU with auval (non-fatal — just log the result)
           echo "=== AU Validation ==="
-          auval -v aumu Grnb Bwmx 2>&1 || echo "auval returned non-zero (may be expected without audio device)"
+          auval -v aumu Clnk Bwmx 2>&1 || echo "auval returned non-zero (may be expected without audio device)"
 
           # List what was built
           echo "=== Built artifacts ==="
@@ -103,7 +103,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          find build/GrooveEngineRnB_artefacts -name "moduleinfo.json" | while IFS= read -r jsonfile; do
+          find build/Collonka_artefacts -name "moduleinfo.json" | while IFS= read -r jsonfile; do
             echo "Fixing trailing commas in: $jsonfile"
             sed -i.bak -E 's/,([[:space:]]*[}\]])/\1/g' "$jsonfile"
             rm -f "${jsonfile}.bak"
@@ -116,10 +116,9 @@ jobs:
         run: |
           DIST="dist/${{ matrix.artifact_name }}"
           mkdir -p "$DIST/VST3" "$DIST/Standalone" "$DIST/Presets/Factory"
-          find build/GrooveEngineRnB_artefacts/Release/VST3 -name "*.vst3" -type d -exec cp -r {} "$DIST/VST3/" \;
-          find build/GrooveEngineRnB_artefacts/Release/Standalone -name "*.exe" -exec cp {} "$DIST/Standalone/" \;
+          find build/Collonka_artefacts/Release/VST3 -name "*.vst3" -type d -exec cp -r {} "$DIST/VST3/" \;
+          find build/Collonka_artefacts/Release/Standalone -name "*.exe" -exec cp {} "$DIST/Standalone/" \;
           cp Presets/Factory/*.xml "$DIST/Presets/Factory/"
-          cp dist/BW_BASS_v1.0.0_Win64/Install.bat "$DIST/" 2>/dev/null || true
 
       # ---- macOS packaging ----
       - name: Package (macOS)
@@ -129,7 +128,7 @@ jobs:
           DIST="dist/${{ matrix.artifact_name }}"
           mkdir -p "$DIST/VST3" "$DIST/AU" "$DIST/Standalone" "$DIST/Presets/Factory"
 
-          ARTS="build/GrooveEngineRnB_artefacts"
+          ARTS="build/Collonka_artefacts"
           if [ ! -d "$ARTS/VST3" ] && [ -d "$ARTS/Release/VST3" ]; then
             ARTS="$ARTS/Release"
           fi
@@ -147,7 +146,7 @@ jobs:
           #!/bin/bash
           set -e
           SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-          echo "=== BW BASS v1.0.0 Installer ==="
+          echo "=== Collonka v1.0.0 Installer ==="
 
           # Remove quarantine from all bundles
           xattr -cr "$SCRIPT_DIR" 2>/dev/null || true
@@ -170,7 +169,7 @@ jobs:
           killall -9 AudioComponentRegistrar 2>/dev/null || true
 
           # Presets
-          PRESET_DIR="$HOME/Library/Application Support/BW BASS/Presets/Factory"
+          PRESET_DIR="$HOME/Library/Application Support/Collonka/Presets/Factory"
           mkdir -p "$PRESET_DIR"
           cp "$SCRIPT_DIR/Presets/Factory/"*.xml "$PRESET_DIR/" 2>/dev/null
           echo "Presets → $PRESET_DIR"

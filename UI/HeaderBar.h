@@ -7,7 +7,7 @@
  * HeaderBar — Always-visible top strip.
  *
  * Layout (left to right):
- *   [BW BASS logo/title] [<] [Preset Name] [>] [SAVE][INIT]
+ *   [COLLONKA logo/title] [<] [Preset Name] [>] [SAVE][INIT]
  *   [MAIN][FILTER][SETTINGS][AI ASSIST]  [output meter]
  */
 class HeaderBar : public juce::Component

@@ -1,5 +1,5 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<GrooveEngineRnBState>
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<CollonkaState>
   <PARAM id="osc1_waveform" value="0"/>
   <PARAM id="osc1_range" value="1"/>
   <PARAM id="osc1_level" value="1.0"/>
@@ -63,4 +63,4 @@
   <PARAM id="reverbMix" value="0.05"/>
   <PARAM id="reverbDecay" value="0.20"/>
   <PARAM id="reverbTone" value="0.35"/>
-</GrooveEngineRnBState>
+</CollonkaState>

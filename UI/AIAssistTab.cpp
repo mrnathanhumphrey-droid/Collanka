@@ -184,7 +184,7 @@ AIAssistTab::AIAssistTab(juce::AudioProcessorValueTreeState& vts) : apvts(vts)
     reconnectBtn.setColour(juce::TextButton::textColourOffId, BW::PurpleGlow);
     addAndMakeVisible(reconnectBtn);
 
-    addMessage("System", "Claude AI assistant for BW BASS.\nConnect to an MCE server to begin.\n\nType 'play', 'demo', or 'write' in chat to generate notes.");
+    addMessage("System", "Claude AI assistant for Collonka.\nConnect to an MCE server to begin.\n\nType 'play', 'demo', or 'write' in chat to generate notes.");
 }
 
 // =============================================================================

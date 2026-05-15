@@ -24,3 +24,5 @@ dist/
 node_modules/
 MCEServer/node_modules/
 MCEServer/mce.log
+.build_compile.log
+.build_compile.err

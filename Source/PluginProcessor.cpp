@@ -1,26 +1,27 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "PluginParameters.h"
+#include "BinaryData.h"
 
 // =============================================================================
 // Constructor / Destructor
 // =============================================================================
 
-GrooveEngineRnBAudioProcessor::GrooveEngineRnBAudioProcessor()
+CollonkaAudioProcessor::CollonkaAudioProcessor()
     : AudioProcessor(BusesProperties()
                      .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
-      apvts(*this, nullptr, "GrooveEngineRnBState", createParameterLayout())
+      apvts(*this, nullptr, "CollonkaState", createParameterLayout())
 {
 }
 
-GrooveEngineRnBAudioProcessor::~GrooveEngineRnBAudioProcessor() = default;
+CollonkaAudioProcessor::~CollonkaAudioProcessor() = default;
 
 // =============================================================================
 // Parameter Layout
 // =============================================================================
 
 juce::AudioProcessorValueTreeState::ParameterLayout
-GrooveEngineRnBAudioProcessor::createParameterLayout()
+CollonkaAudioProcessor::createParameterLayout()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
@@ -32,7 +33,10 @@ GrooveEngineRnBAudioProcessor::createParameterLayout()
     juce::StringArray keyTrackChoices { "0%", "33%", "67%", "100%" };
     juce::StringArray slopeChoices { "12 dB/oct", "24 dB/oct" };
     juce::StringArray lfoWaveChoices { "Triangle", "Square", "Sine" };
-    juce::StringArray lfoTargetChoices { "Filter Cutoff", "Pitch", "Amplitude", "Drive" };
+    juce::StringArray lfoTargetChoices {
+        "Filter Cutoff", "Pitch", "Amplitude", "Drive",
+        "WT POS", "Collatz K", "Formant Q", "Formant Wet", "Formant Anchor"
+    };
     juce::StringArray bassModeChoices { "Pluck", "808", "Reese" };
 
     // --- OSC1 ---
@@ -268,6 +272,30 @@ GrooveEngineRnBAudioProcessor::createParameterLayout()
     params.push_back(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID(ParamIDs::bassMode, 1), "Bass Mode", bassModeChoices, 0));
 
+    // --- Collatz Wavetable ---
+    juce::StringArray collatzKChoices { "3", "4", "5", "6", "7", "8", "9" };
+    juce::StringArray collatzRuleChoices { "K_k Spectrum", "alpha_det Phase", "Parity" };
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID(ParamIDs::collatzK, 1), "Collatz K", collatzKChoices, 3));  // default index 3 = K=6
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID(ParamIDs::collatzWavetableRule, 1), "Collatz Rule", collatzRuleChoices, 0));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID(ParamIDs::wtPos, 1), "WT POS",
+        juce::NormalisableRange<float>(0.0f, 1.0f), 0.0f));
+
+    // --- Collatz Formant ---
+    params.push_back(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID(ParamIDs::formantEnabled, 1), "Formant On", true));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID(ParamIDs::formantQ, 1), "Formant Q",
+        juce::NormalisableRange<float>(5.0f, 30.0f), 18.0f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID(ParamIDs::formantWet, 1), "Formant Wet",
+        juce::NormalisableRange<float>(0.0f, 1.0f), 0.7f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID(ParamIDs::formantAnchorHz, 1), "Formant Anchor",
+        juce::NormalisableRange<float>(200.0f, 800.0f), 500.0f));
+
     return { params.begin(), params.end() };
 }
 
@@ -275,7 +303,7 @@ GrooveEngineRnBAudioProcessor::createParameterLayout()
 // Prepare / Release
 // =============================================================================
 
-void GrooveEngineRnBAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
+void CollonkaAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     synthEngine.prepare(sampleRate, samplesPerBlock);
     currentSampleRate = sampleRate;
@@ -288,12 +316,12 @@ void GrooveEngineRnBAudioProcessor::prepareToPlay(double sampleRate, int samples
     updateEngineParameters();
 }
 
-void GrooveEngineRnBAudioProcessor::releaseResources()
+void CollonkaAudioProcessor::releaseResources()
 {
     synthEngine.reset();
 }
 
-void GrooveEngineRnBAudioProcessor::stopAIPlayback()
+void CollonkaAudioProcessor::stopAIPlayback()
 {
     // Kill staged events so audio thread stops consuming
     injectorPlaying = false;
@@ -307,7 +335,7 @@ void GrooveEngineRnBAudioProcessor::stopAIPlayback()
         synthEngine.handleNoteOff(n);
 }
 
-bool GrooveEngineRnBAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
+bool CollonkaAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
     if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
         && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
@@ -320,7 +348,7 @@ bool GrooveEngineRnBAudioProcessor::isBusesLayoutSupported(const BusesLayout& la
 // Process Block
 // =============================================================================
 
-void GrooveEngineRnBAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
+void CollonkaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                                    juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
@@ -445,7 +473,7 @@ void GrooveEngineRnBAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
 // Parameter Update — pull from APVTS, push to SynthEngine
 // =============================================================================
 
-void GrooveEngineRnBAudioProcessor::updateEngineParameters()
+void CollonkaAudioProcessor::updateEngineParameters()
 {
     // Helper lambdas to retrieve parameter values
     auto getFloat = [this](const char* id) {
@@ -566,43 +594,79 @@ void GrooveEngineRnBAudioProcessor::updateEngineParameters()
     synthEngine.setReverbMix(getFloat(ParamIDs::reverbMix));
     synthEngine.setReverbDecay(getFloat(ParamIDs::reverbDecay));
     synthEngine.setReverbTone(getFloat(ParamIDs::reverbTone));
+
+    // --- Collatz Wavetable ---
+    int collatzKIdx = getChoice(ParamIDs::collatzK);                // 0..6 -> K = 3..9
+    int kValue      = collatzKIdx + 3;
+    int ruleIdx     = getChoice(ParamIDs::collatzWavetableRule);    // 0..2
+
+    reloadCollatzBankIfNeeded(kValue, ruleIdx);
+    synthEngine.setCollatzK(kValue);
+    synthEngine.setWtPos(getFloat(ParamIDs::wtPos));
+
+    // --- Collatz Formant ---
+    synthEngine.setFormantEnabled(getBool(ParamIDs::formantEnabled));
+    synthEngine.setFormantQ(getFloat(ParamIDs::formantQ));
+    synthEngine.setFormantWet(getFloat(ParamIDs::formantWet));
+    synthEngine.setFormantAnchorHz(getFloat(ParamIDs::formantAnchorHz));
+}
+
+void CollonkaAudioProcessor::reloadCollatzBankIfNeeded(int k, int rule)
+{
+    if (k == currentBankK && rule == currentBankRule && currentBankPtr != nullptr)
+        return;
+
+    juce::String resourceName;
+    resourceName << "collatz_K" << k << "_rule" << rule << "_bin";
+
+    int sizeBytes = 0;
+    const char* data = BinaryData::getNamedResource(resourceName.toRawUTF8(), sizeBytes);
+
+    if (data != nullptr && sizeBytes > 0)
+    {
+        currentBankPtr  = reinterpret_cast<const float*>(data);
+        currentBankK    = k;
+        currentBankRule = rule;
+        synthEngine.setCollatzBank(currentBankPtr);
+    }
+    // If lookup failed, leave the previous bank pointer in place so audio still plays.
 }
 
 // =============================================================================
 // Plugin Info
 // =============================================================================
 
-const juce::String GrooveEngineRnBAudioProcessor::getName() const { return JucePlugin_Name; }
-bool GrooveEngineRnBAudioProcessor::acceptsMidi() const { return true; }
-bool GrooveEngineRnBAudioProcessor::producesMidi() const { return false; }
-bool GrooveEngineRnBAudioProcessor::isMidiEffect() const { return false; }
-double GrooveEngineRnBAudioProcessor::getTailLengthSeconds() const { return 0.0; }
+const juce::String CollonkaAudioProcessor::getName() const { return JucePlugin_Name; }
+bool CollonkaAudioProcessor::acceptsMidi() const { return true; }
+bool CollonkaAudioProcessor::producesMidi() const { return false; }
+bool CollonkaAudioProcessor::isMidiEffect() const { return false; }
+double CollonkaAudioProcessor::getTailLengthSeconds() const { return 0.0; }
 
-int GrooveEngineRnBAudioProcessor::getNumPrograms() { return 1; }
-int GrooveEngineRnBAudioProcessor::getCurrentProgram() { return 0; }
-void GrooveEngineRnBAudioProcessor::setCurrentProgram(int) {}
-const juce::String GrooveEngineRnBAudioProcessor::getProgramName(int) { return {}; }
-void GrooveEngineRnBAudioProcessor::changeProgramName(int, const juce::String&) {}
+int CollonkaAudioProcessor::getNumPrograms() { return 1; }
+int CollonkaAudioProcessor::getCurrentProgram() { return 0; }
+void CollonkaAudioProcessor::setCurrentProgram(int) {}
+const juce::String CollonkaAudioProcessor::getProgramName(int) { return {}; }
+void CollonkaAudioProcessor::changeProgramName(int, const juce::String&) {}
 
-bool GrooveEngineRnBAudioProcessor::hasEditor() const { return true; }
+bool CollonkaAudioProcessor::hasEditor() const { return true; }
 
-juce::AudioProcessorEditor* GrooveEngineRnBAudioProcessor::createEditor()
+juce::AudioProcessorEditor* CollonkaAudioProcessor::createEditor()
 {
-    return new GrooveEngineRnBAudioProcessorEditor(*this);
+    return new CollonkaAudioProcessorEditor(*this);
 }
 
 // =============================================================================
 // State Save / Load (preset management)
 // =============================================================================
 
-void GrooveEngineRnBAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
+void CollonkaAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     auto state = apvts.copyState();
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
     copyXmlToBinary(*xml, destData);
 }
 
-void GrooveEngineRnBAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
+void CollonkaAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     std::unique_ptr<juce::XmlElement> xml(getXmlFromBinary(data, sizeInBytes));
     if (xml != nullptr && xml->hasTagName(apvts.state.getType()))
@@ -618,5 +682,5 @@ void GrooveEngineRnBAudioProcessor::setStateInformation(const void* data, int si
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
-    return new GrooveEngineRnBAudioProcessor();
+    return new CollonkaAudioProcessor();
 }

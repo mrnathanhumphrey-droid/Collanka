@@ -1,7 +1,7 @@
 #include "PluginEditor.h"
 
-GrooveEngineRnBAudioProcessorEditor::GrooveEngineRnBAudioProcessorEditor(
-    GrooveEngineRnBAudioProcessor& p)
+CollonkaAudioProcessorEditor::CollonkaAudioProcessorEditor(
+    CollonkaAudioProcessor& p)
     : AudioProcessorEditor(&p),
       processorRef(p),
       mainTab(p.getAPVTS()),
@@ -116,18 +116,18 @@ GrooveEngineRnBAudioProcessorEditor::GrooveEngineRnBAudioProcessorEditor(
     startTimerHz(30); // UI refresh for meters
 }
 
-GrooveEngineRnBAudioProcessorEditor::~GrooveEngineRnBAudioProcessorEditor()
+CollonkaAudioProcessorEditor::~CollonkaAudioProcessorEditor()
 {
     stopTimer();
     setLookAndFeel(nullptr);
 }
 
-void GrooveEngineRnBAudioProcessorEditor::paint(juce::Graphics& g)
+void CollonkaAudioProcessorEditor::paint(juce::Graphics& g)
 {
     g.fillAll(BW::Black);
 }
 
-void GrooveEngineRnBAudioProcessorEditor::resized()
+void CollonkaAudioProcessorEditor::resized()
 {
     auto bounds = getLocalBounds();
 
@@ -144,7 +144,7 @@ void GrooveEngineRnBAudioProcessorEditor::resized()
     aiAssistTab.setBounds(bounds);
 }
 
-void GrooveEngineRnBAudioProcessorEditor::showTab(int index)
+void CollonkaAudioProcessorEditor::showTab(int index)
 {
     currentTab = index;
     mainTab.setVisible(index == 0);
@@ -153,7 +153,7 @@ void GrooveEngineRnBAudioProcessorEditor::showTab(int index)
     aiAssistTab.setVisible(index == 3);
 }
 
-void GrooveEngineRnBAudioProcessorEditor::timerCallback()
+void CollonkaAudioProcessorEditor::timerCallback()
 {
     // Could add peak meter levels here in future
     // headerBar.setMeterLevels(leftDB, rightDB);
@@ -163,19 +163,19 @@ void GrooveEngineRnBAudioProcessorEditor::timerCallback()
 // Preset Management
 // =============================================================================
 
-void GrooveEngineRnBAudioProcessorEditor::scanPresets()
+void CollonkaAudioProcessorEditor::scanPresets()
 {
     // Search multiple locations for the Factory presets folder
     juce::Array<juce::File> searchPaths;
 
-    // 1. macOS: ~/Library/Application Support/BW BASS/Presets/Factory (install.sh target)
+    // 1. macOS: ~/Library/Application Support/Collonka/Presets/Factory (install.sh target)
     auto appSupport = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
-                          .getChildFile("BW BASS")
+                          .getChildFile("Collonka")
                           .getChildFile("Presets")
                           .getChildFile("Factory");
     searchPaths.add(appSupport);
 
-    // 2. Windows: %APPDATA%/BW BASS/Presets/Factory (Install.bat target)
+    // 2. Windows: %APPDATA%/Collonka/Presets/Factory (Install.bat target)
     // (same as above on Windows — userApplicationDataDirectory maps to %APPDATA%)
 
     // 3. Relative to executable (standalone dev builds)
@@ -188,7 +188,7 @@ void GrooveEngineRnBAudioProcessorEditor::scanPresets()
                            .getChildFile("Factory"));
 
     // 4. Windows dev fallback
-    searchPaths.add(juce::File("C:\\GrooveEngineRnB\\Presets\\Factory"));
+    searchPaths.add(juce::File("C:\\Collonka\\Presets\\Factory"));
 
     // 5. macOS: next to the .vst3/.component bundle
     searchPaths.add(exeFile.getParentDirectory()
@@ -221,14 +221,14 @@ void GrooveEngineRnBAudioProcessorEditor::scanPresets()
     }
 }
 
-void GrooveEngineRnBAudioProcessorEditor::loadPresetByIndex(int index)
+void CollonkaAudioProcessorEditor::loadPresetByIndex(int index)
 {
     if (index < 0 || index >= presetFiles.size()) return;
 
     auto file = presetFiles[index];
     auto xml = juce::XmlDocument::parse(file.loadFileAsString());
 
-    if (xml == nullptr || !xml->hasTagName("GrooveEngineRnBState"))
+    if (xml == nullptr || !xml->hasTagName("CollonkaState"))
         return;
 
     auto& apvts = processorRef.getAPVTS();

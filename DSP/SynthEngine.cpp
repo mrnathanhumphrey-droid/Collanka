@@ -11,6 +11,7 @@ void SynthEngine::prepare(double newSampleRate, int blockSize)
     oscillatorBank.prepare(sampleRate, blockSize);
     mixer.prepare(sampleRate, blockSize);
     filter.prepare(sampleRate, blockSize);
+    collatzFormant.prepare(sampleRate, blockSize);
     filterEnvelope.prepare(sampleRate, blockSize);
     ampEnvelope.prepare(sampleRate, blockSize);
     pitchEnvelope.prepare(sampleRate, blockSize);
@@ -36,6 +37,7 @@ void SynthEngine::reset()
     oscillatorBank.reset();
     mixer.reset();
     filter.reset();
+    collatzFormant.reset();
     filterEnvelope.reset();
     ampEnvelope.reset();
     pitchEnvelope.reset();
@@ -94,6 +96,10 @@ void SynthEngine::handleNoteOn(int noteNumber, float velocity)
 
     // Flag for 808 bump frequency tracking
     noteFreqChanged = true;
+
+    // Per-note Collatz formant retune (residue = noteNumber mod 2^k).
+    // Frozen for note duration per spec.
+    collatzFormant.retune(noteNumber, currentCollatzK);
 }
 
 void SynthEngine::handleNoteOff(int noteNumber)
@@ -195,9 +201,14 @@ void SynthEngine::process(float* leftChannel, float* rightChannel, int numSample
             }
 
             // =====================================================
-            // 5. OSCILLATOR BANK → raw signal
+            // 5. OSCILLATOR BANK → raw signal (Collatz wavetable)
+            //    Per-sample WT POS = base + mod-matrix offset, clamped.
             // =====================================================
-            OscillatorBank::OscOutput oscOut = oscillatorBank.tick(currentFreq, osc3AsLFO);
+            float wtPos = baseWtPos + modOutputs.wtPosMod;
+            if (wtPos < 0.0f) wtPos = 0.0f;
+            else if (wtPos > 1.0f) wtPos = 1.0f;
+
+            OscillatorBank::OscOutput oscOut = oscillatorBank.tick(currentFreq, osc3AsLFO, wtPos);
 
             // =====================================================
             // 6. MIXER → combined signal (with feedback)
@@ -239,6 +250,16 @@ void SynthEngine::process(float* leftChannel, float* rightChannel, int numSample
             filter.setResonance(smoothResonance.tick());
 
             float filteredSignal = filter.process(mixedSignal);
+
+            // =====================================================
+            // 7b. COLLATZ FORMANT FILTER (3 SVF bandpass)
+            //     F1/F2/F3 frozen at note-on; Q and wet are live + mod-routable.
+            // =====================================================
+            float fQ   = baseFormantQ + modOutputs.formantQMod;
+            float fWet = baseFormantWet + modOutputs.formantWetMod;
+            collatzFormant.setQ(fQ);
+            collatzFormant.setWet(fWet);
+            filteredSignal = collatzFormant.process(filteredSignal);
 
             // =====================================================
             // 8. AMPLITUDE ENVELOPE × filtered signal
@@ -289,21 +310,21 @@ void SynthEngine::process(float* leftChannel, float* rightChannel, int numSample
 // Parameter Setters
 // =============================================================================
 
-// --- Oscillators ---
-void SynthEngine::setOsc1Waveform(int idx)   { oscillatorBank.setOsc1Waveform(static_cast<BLOscillator::Waveform>(idx)); }
+// --- Oscillators (waveform setters are now no-ops; Collatz osc has no per-osc waveform) ---
+void SynthEngine::setOsc1Waveform(int /*idx*/) {}
 void SynthEngine::setOsc1Range(int idx)       { oscillatorBank.setOsc1Range(idx); }
 void SynthEngine::setOsc1Level(float level)   { smoothOsc1Level.setTarget(level); }
 void SynthEngine::setOsc1TuneSemi(int semi)   { oscillatorBank.setOsc1TuneSemitones(semi); }
 void SynthEngine::setOsc1TuneCents(float c)   { oscillatorBank.setOsc1TuneCents(c); }
 
-void SynthEngine::setOsc2Waveform(int idx)    { oscillatorBank.setOsc2Waveform(static_cast<BLOscillator::Waveform>(idx)); }
+void SynthEngine::setOsc2Waveform(int /*idx*/) {}
 void SynthEngine::setOsc2Range(int idx)       { oscillatorBank.setOsc2Range(idx); }
 void SynthEngine::setOsc2Level(float level)   { smoothOsc2Level.setTarget(level); }
 void SynthEngine::setOsc2Detune(float cents)  { oscillatorBank.setOsc2Detune(cents); }
 void SynthEngine::setOsc2TuneSemi(int semi)   { oscillatorBank.setOsc2TuneSemitones(semi); }
 
 void SynthEngine::setOsc3Mode(int mode)       { osc3AsLFO = (mode == 1); }
-void SynthEngine::setOsc3Waveform(int idx)    { oscillatorBank.setOsc3Waveform(static_cast<BLOscillator::Waveform>(idx)); }
+void SynthEngine::setOsc3Waveform(int /*idx*/) {}
 void SynthEngine::setOsc3Range(int idx)       { oscillatorBank.setOsc3Range(idx); }
 void SynthEngine::setOsc3Level(float level)   { smoothOsc3Level.setTarget(level); }
 void SynthEngine::setOsc3TuneSemi(int semi)   { oscillatorBank.setOsc3TuneSemitones(semi); }
@@ -406,6 +427,16 @@ void SynthEngine::setMudQ(float q)               { outputStage.setMudQ(q); }
 void SynthEngine::setDrive(float amount)         { smoothDrive.setTarget(amount); }
 void SynthEngine::setStereoWidth(float w)        { outputStage.setStereoWidth(w); }
 void SynthEngine::setMasterVolume(float l)       { smoothMasterVol.setTarget(l); }
+
+// --- Collatz wavetable + formant ---
+void SynthEngine::setCollatzBank(const float* bankData) { oscillatorBank.setCollatzBank(bankData); }
+void SynthEngine::setCollatzK(int k)                    { currentCollatzK = std::max(3, std::min(9, k)); }
+void SynthEngine::setWtPos(float pos)                   { baseWtPos = std::max(0.0f, std::min(1.0f, pos)); }
+
+void SynthEngine::setFormantEnabled(bool e)             { collatzFormant.setEnabled(e); }
+void SynthEngine::setFormantQ(float q)                  { baseFormantQ = q; }
+void SynthEngine::setFormantWet(float w)                { baseFormantWet = w; }
+void SynthEngine::setFormantAnchorHz(float hz)          { collatzFormant.setAnchor(hz); }
 
 // =============================================================================
 // Bass Mode Presets

@@ -10,16 +10,13 @@
  * Sources: LFO, Filter Envelope, Amplitude Envelope, Pitch Envelope,
  *          Velocity, Mod Wheel, OSC3-as-LFO.
  *
- * Destinations: Filter Cutoff, OSC Pitch (all), Amplitude, Drive.
- *
- * The matrix collects all source values, applies routing and scaling,
- * and outputs a set of modulation offsets that are added to the base
- * parameter values by SynthEngine.
+ * Destinations: Filter Cutoff, Pitch, Amplitude, Drive, plus the Collatz
+ *               additions: WT POS, Collatz K, Formant Q, Formant Wet,
+ *               Formant Anchor.
  */
 class ModMatrix
 {
 public:
-    // Modulation source identifiers
     enum class Source
     {
         LFO = 0,
@@ -32,17 +29,20 @@ public:
         NumSources
     };
 
-    // Modulation destination identifiers
     enum class Destination
     {
         FilterCutoff = 0,
         Pitch,
         Amplitude,
         Drive,
+        WtPos,
+        CollatzK,
+        FormantQ,
+        FormantWet,
+        FormantAnchor,
         NumDestinations
     };
 
-    // Input: all current source values
     struct SourceValues
     {
         float lfo = 0.0f;
@@ -54,13 +54,18 @@ public:
         float osc3LFO = 0.0f;
     };
 
-    // Output: modulation offsets to add to base parameter values
     struct ModOutputs
     {
-        float filterCutoffMod = 0.0f;   // Additive Hz offset
-        float pitchMod = 0.0f;          // Additive semitones offset
-        float ampMod = 0.0f;            // Multiplicative gain factor (centered at 1.0)
-        float driveMod = 0.0f;          // Additive drive offset
+        float filterCutoffMod  = 0.0f;
+        float pitchMod         = 0.0f;
+        float ampMod           = 0.0f;
+        float driveMod         = 0.0f;
+        // Collatz additions
+        float wtPosMod         = 0.0f;
+        float collatzKMod      = 0.0f;
+        float formantQMod      = 0.0f;
+        float formantWetMod    = 0.0f;
+        float formantAnchorMod = 0.0f;
     };
 
     ModMatrix();
@@ -68,36 +73,16 @@ public:
     void prepare(double sampleRate, int blockSize);
     void reset();
 
-    /**
-     * Process all modulation routes and return the combined outputs.
-     *
-     * @param sources  Current values of all modulation sources.
-     * @return Combined modulation offsets for each destination.
-     */
     ModOutputs process(const SourceValues& sources) const;
 
-    // --- Primary LFO routing (controlled by the main LFO target parameter) ---
-
-    /** Set the LFO's primary target destination. */
     void setLFOTarget(Destination dest);
-
-    /** Set the filter envelope modulation depth (bipolar, -1 to +1). */
     void setFilterEnvAmount(float amount);
-
-    // --- Additional fixed routes ---
-
-    /** Set mod wheel → filter cutoff depth. */
     void setModWheelToFilterAmount(float amount);
-
-    /** Set velocity → amplitude sensitivity (0 = none, 1 = full). */
     void setVelocitySensitivity(float amount);
 
 private:
-    // Primary LFO routing target
     Destination lfoTarget = Destination::FilterCutoff;
-
-    // Fixed route amounts
-    float filterEnvAmount = 0.5f;         // Filter envelope → filter cutoff
-    float modWheelToFilter = 0.0f;        // Mod wheel → filter cutoff
-    float velocitySensitivity = 0.5f;     // Velocity → amplitude
+    float filterEnvAmount     = 0.5f;
+    float modWheelToFilter    = 0.0f;
+    float velocitySensitivity = 0.5f;
 };

@@ -11,16 +11,16 @@
 #include "MCEClient.h"
 
 /**
- * PluginEditor — BW BASS main editor window.
+ * PluginEditor — Collonka main editor window.
  *
  * Header bar (always visible) + 4 tabbed content panels + MIDI keyboard.
  */
-class GrooveEngineRnBAudioProcessorEditor : public juce::AudioProcessorEditor,
+class CollonkaAudioProcessorEditor : public juce::AudioProcessorEditor,
                                             public juce::Timer
 {
 public:
-    explicit GrooveEngineRnBAudioProcessorEditor(GrooveEngineRnBAudioProcessor&);
-    ~GrooveEngineRnBAudioProcessorEditor() override;
+    explicit CollonkaAudioProcessorEditor(CollonkaAudioProcessor&);
+    ~CollonkaAudioProcessorEditor() override;
 
     void paint(juce::Graphics&) override;
     void resized() override;
@@ -31,7 +31,7 @@ private:
     void loadPresetByIndex(int index);
     void scanPresets();
 
-    GrooveEngineRnBAudioProcessor& processorRef;
+    CollonkaAudioProcessor& processorRef;
 
     BWLookAndFeel bwLookAndFeel;
 
@@ -56,5 +56,5 @@ private:
     juce::Array<juce::File> presetFiles;
     int currentPresetIndex = -1;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GrooveEngineRnBAudioProcessorEditor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CollonkaAudioProcessorEditor)
 };

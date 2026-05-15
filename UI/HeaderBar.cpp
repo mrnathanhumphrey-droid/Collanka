@@ -3,7 +3,7 @@
 HeaderBar::HeaderBar()
 {
     // --- Title ---
-    titleLabel.setText("BW BASS", juce::dontSendNotification);
+    titleLabel.setText("COLLONKA", juce::dontSendNotification);
     titleLabel.setFont(juce::Font(18.0f, juce::Font::bold).withExtraKerningFactor(0.2f));
     titleLabel.setColour(juce::Label::textColourId, BW::Pink);
     titleLabel.setJustificationType(juce::Justification::centredLeft);

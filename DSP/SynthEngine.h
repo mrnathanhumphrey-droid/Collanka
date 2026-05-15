@@ -2,6 +2,7 @@
 #include "OscillatorBank.h"
 #include "MixerSection.h"
 #include "MoogLadderFilter.h"
+#include "CollatzFormantFilter.h"
 #include "EnvelopeGenerator.h"
 #include "PitchEnvelope.h"
 #include "PortamentoEngine.h"
@@ -171,6 +172,19 @@ public:
     /** Get current bass mode for UI feedback. */
     BassMode getBassMode() const { return currentMode; }
 
+    // --- Collatz wavetable + formant ---
+    /** Swap active wavetable bank (called from PluginProcessor on K / Rule change). */
+    void setCollatzBank(const float* bankData);
+    /** Modular resolution k (3..9). Stored for formant retune; bank itself is set separately. */
+    void setCollatzK(int k);
+    /** Wavetable position in [0, 1]; per-block target, smoothed if needed at higher level. */
+    void setWtPos(float pos);
+
+    void setFormantEnabled(bool enabled);
+    void setFormantQ(float q);
+    void setFormantWet(float wet);
+    void setFormantAnchorHz(float hz);
+
 private:
     /** Apply parameter preset for the selected bass mode. */
     void applyBassMode(BassMode mode);
@@ -179,6 +193,7 @@ private:
     OscillatorBank oscillatorBank;
     MixerSection mixer;
     MoogLadderFilter filter;
+    CollatzFormantFilter collatzFormant;
     EnvelopeGenerator filterEnvelope;
     EnvelopeGenerator ampEnvelope;
     PitchEnvelope pitchEnvelope;
@@ -203,6 +218,12 @@ private:
     float filterEnvAmountParam = 0.5f;
     int filterKeyTrackMode = 0;
     bool osc3AsLFO = false;
+
+    // Collatz parameter cache (block-rate base values; modulation applied per-sample in process())
+    int   currentCollatzK   = 6;
+    float baseWtPos         = 0.0f;
+    float baseFormantQ      = 18.0f;
+    float baseFormantWet    = 0.7f;
 
     // =========================================================================
     // Per-sample parameter smoother (one-pole IIR, no JUCE dependency)

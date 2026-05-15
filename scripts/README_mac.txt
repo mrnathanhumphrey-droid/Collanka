@@ -1,5 +1,5 @@
-BW BASS v1.0.0 — Billy Wonka Music
-Moog-Inspired R&B Bass Synthesizer
+Collonka v1.0.0 — Billy Wonka Music
+Collatz-organized Moog-shaped bass synthesizer (fork of BW BASS / Groove Engine R&B)
 
 INSTALLATION
 ============
@@ -9,9 +9,9 @@ Option 1: Run install.sh
     ./install.sh
 
 Option 2: Manual
-  VST3:  Copy "Groove Engine RnB.vst3" to ~/Library/Audio/Plug-Ins/VST3/
-  AU:    Copy "Groove Engine RnB.component" to ~/Library/Audio/Plug-Ins/Components/
-  App:   Drag "Groove Engine RnB.app" to /Applications/
+  VST3:  Copy "Collonka.vst3" to ~/Library/Audio/Plug-Ins/VST3/
+  AU:    Copy "Collonka.component" to ~/Library/Audio/Plug-Ins/Components/
+  App:   Drag "Collonka.app" to /Applications/
 
 Restart your DAW and rescan plugins after installing.
 

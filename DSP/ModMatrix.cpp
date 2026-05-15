@@ -70,6 +70,32 @@ ModMatrix::ModOutputs ModMatrix::process(const SourceValues& sources) const
             out.driveMod = sources.lfo * 0.3f;
             break;
 
+        // --- Collatz destinations ---
+        case Destination::WtPos:
+            // LFO sweeps wavetable position (full +/- 0.5 around base, clamped at SynthEngine)
+            out.wtPosMod = sources.lfo * 0.5f;
+            break;
+
+        case Destination::CollatzK:
+            // LFO shifts modular resolution k by up to +/- 3 (rounded to int at SynthEngine)
+            out.collatzKMod = sources.lfo * 3.0f;
+            break;
+
+        case Destination::FormantQ:
+            // LFO sweeps Q by +/- 10 around the base value
+            out.formantQMod = sources.lfo * 10.0f;
+            break;
+
+        case Destination::FormantWet:
+            // LFO sweeps formant wet/dry by +/- 0.5 (clamped at filter)
+            out.formantWetMod = sources.lfo * 0.5f;
+            break;
+
+        case Destination::FormantAnchor:
+            // LFO sweeps anchor by +/- 200 Hz; takes effect at next note-on per spec
+            out.formantAnchorMod = sources.lfo * 200.0f;
+            break;
+
         default:
             break;
     }

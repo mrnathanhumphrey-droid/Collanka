@@ -111,4 +111,15 @@ namespace ParamIDs
 
     // Mode
     inline constexpr const char* bassMode        = "bass_mode";
+
+    // Collatz wavetable
+    inline constexpr const char* collatzK             = "collatz_k";
+    inline constexpr const char* collatzWavetableRule = "collatz_wavetable_rule";
+    inline constexpr const char* wtPos                = "wt_pos";
+
+    // Collatz formant
+    inline constexpr const char* formantEnabled  = "formant_enabled";
+    inline constexpr const char* formantQ        = "formant_q";
+    inline constexpr const char* formantWet      = "formant_wet";
+    inline constexpr const char* formantAnchorHz = "formant_anchor_hz";
 }
