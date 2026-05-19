@@ -116,9 +116,8 @@ jobs:
         shell: bash
         run: |
           DIST="dist/${{ matrix.artifact_name }}"
-          mkdir -p "$DIST/VST3" "$DIST/Standalone" "$DIST/Presets/Factory"
+          mkdir -p "$DIST/VST3" "$DIST/Presets/Factory"
           find build/Collonka_artefacts/Release/VST3 -name "*.vst3" -type d -exec cp -r {} "$DIST/VST3/" \;
-          find build/Collonka_artefacts/Release/Standalone -name "*.exe" -exec cp {} "$DIST/Standalone/" \;
           cp Presets/Factory/*.xml "$DIST/Presets/Factory/"
 
       # ---- macOS packaging ----
@@ -127,7 +126,7 @@ jobs:
         shell: bash
         run: |
           DIST="dist/${{ matrix.artifact_name }}"
-          mkdir -p "$DIST/VST3" "$DIST/AU" "$DIST/Standalone" "$DIST/Presets/Factory"
+          mkdir -p "$DIST/VST3" "$DIST/AU" "$DIST/Presets/Factory"
 
           ARTS="build/Collonka_artefacts"
           if [ ! -d "$ARTS/VST3" ] && [ -d "$ARTS/Release/VST3" ]; then
@@ -142,9 +141,6 @@ jobs:
           done
           find "$ARTS" -maxdepth 3 -name "*.component" -type d -print0 | while IFS= read -r -d '' src; do
             ditto "$src" "$DIST/AU/$(basename "$src")"
-          done
-          find "$ARTS" -maxdepth 3 -name "*.app" -type d -print0 | while IFS= read -r -d '' src; do
-            ditto "$src" "$DIST/Standalone/$(basename "$src")"
           done
 
           # Presets
