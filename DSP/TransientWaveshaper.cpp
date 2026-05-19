@@ -16,6 +16,7 @@ void TransientWaveshaper::reset()
     preX1 = preY1 = 0.0f;
     M_prev = H_prev = 0.0f;
     deX1 = deY1 = 0.0f;
+    dcX1 = dcY1 = 0.0f;
     envelopeLevel = 0.0f;
 }
 
@@ -26,8 +27,16 @@ void TransientWaveshaper::setEnvelopeGain(float e) { envelopeLevel = std::max(0.
 
 void TransientWaveshaper::triggerOnset()
 {
-    M_prev *= 0.1f;
-    H_prev *= 0.1f;
+    // Full state clear on note-on. The previous design bled JA only by 10%
+    // and left pre/de-emphasis filter state entirely untouched — when the
+    // render loop is gated by `noteActive`, that state freezes mid-decay
+    // and the next note's first sample triggers a ringing transient out of
+    // the stale filter coefficients. Click was audible as a "mechanical pop".
+    M_prev = 0.0f;
+    H_prev = 0.0f;
+    preX1 = preY1 = 0.0f;
+    deX1 = deY1 = 0.0f;
+    dcX1 = dcY1 = 0.0f;
     onsetSamples = ONSET_RAMP_SAMPLES;
 }
 
@@ -61,49 +70,72 @@ float TransientWaveshaper::processSample(float input)
     float satVal = satSm.tick();
     float mixVal = mixSm.tick();
 
-    // Envelope-gated drive: cpDrive scales with amp envelope
-    cpDrive = (1.0f + driveVal * 6.0f) * envelopeLevel;
+    // Envelope-modulated drive amount: at attack peak (envelopeLevel = 1) the
+    // signal gets the full driveVal * 6 saturation; during sustain / release
+    // (envelopeLevel → 0) saturation drops out but cpDrive floors at 1 so the
+    // dry signal still passes through stage 1's soft-clip in its linear region.
+    // Previous formula `(1 + driveVal*6) * envelopeLevel` zeroed cpDrive when
+    // the env hit 0, multiplying the input by 0 and silencing the entire
+    // sustain of any pluck-shaped envelope (only the transient was audible).
+    float drvAmount = driveVal * envelopeLevel;
+    cpDrive = 1.0f + drvAmount * 6.0f;
     ja_inputGain = cpDrive;
     ja_a = 3.0f - satVal * 2.5f;
     ja_a = std::max(0.5f, ja_a);
 
-    float dry = input;
+    // Smoothstep onset ramp on the driver INPUT. Previously the ramp was
+    // applied only at H = preOut * cpDrive * onsetRamp (inside stage 3),
+    // which meant the pre-emphasis shelf still saw the full input from
+    // sample 0 — and the +6dB shelf's step response at sample 0 is ~2x
+    // the input value (b0 ≈ 1.96), broadcast as a high-frequency burst
+    // through tanh. That broadband HF burst is the "mic pop / feedback"
+    // character of the click. Gating the input upstream of pre-emphasis
+    // makes the whole chain (shelf -> tanh -> de-emphasis -> DC-blocker)
+    // see a smoothly-rising signal and eliminates the step response.
+    // Smoothstep (Hermite cubic) ramp has zero derivative at both ends,
+    // which is smoother than the previous linear ramp.
+    float progress = (onsetSamples > 0)
+        ? 1.0f - static_cast<float>(onsetSamples) / static_cast<float>(ONSET_RAMP_SAMPLES)
+        : 1.0f;
+    if (onsetSamples > 0) --onsetSamples;
+    float onsetRamp = progress * progress * (3.0f - 2.0f * progress);
 
-    // Stage 1: CP3 asymmetric clip (correct for Pluck — cross-channel intermod)
-    float x = input * cpDrive;
-    float stage1;
-    if (x >= 0.0f)
-        stage1 = x / (1.0f + alpha * x);
-    else
-        stage1 = x / (1.0f + beta * (-x));
+    float gatedInput = input * onsetRamp;
+    float dry = gatedInput;
+
+    // Stage 1: SYMMETRIC soft-clip. CP3 (alpha=2 vs beta=1.44 asymmetric)
+    // put a few-percent DC bias on any symmetric input. Symmetric clip
+    // eliminates the DC source; saturation character is preserved.
+    float x = gatedInput * cpDrive;
+    float stage1 = x / (1.0f + alpha * std::abs(x));
 
     // Stage 2: Pre-emphasis
     float preOut = preB0 * stage1 + preB1 * preX1 - preA1 * preY1;
     preX1 = stage1;
     preY1 = preOut;
 
-    // Stage 3: JA hysteresis (envelope-scaled — only colors the transient)
-    float onsetRamp = (onsetSamples > 0)
-        ? 1.0f - static_cast<float>(onsetSamples) / static_cast<float>(ONSET_RAMP_SAMPLES)
-        : 1.0f;
-    if (onsetSamples > 0) --onsetSamples;
-
-    float H = preOut * ja_inputGain * onsetRamp;
-    float dH = H - H_prev;
-    float delta = (dH >= 0.0f) ? 1.0f : -1.0f;
-    float Man = ja_Ms * std::tanh(H / ja_a);
-    float denom = ja_k * delta + 1.0e-6f;
-    float dM = (Man - M_prev) / denom;
-    float M = M_prev + dM * ja_dt;
-    M = std::max(-ja_Ms * 1.5f, std::min(ja_Ms * 1.5f, M));
-    M_prev = M;
+    // Stage 3: anhysteretic curve (JA integration collapsed in v3.0.12 —
+    // see git history). Onset ramp is now applied to the driver INPUT
+    // (smoothstep at the top of this fn), so H here just uses preOut *
+    // ja_inputGain without an in-stage ramp.
+    float H = preOut * ja_inputGain;
+    float stage3 = std::tanh(H / ja_a);
     H_prev = H;
-    float stage3 = M / ja_Ms;
+    M_prev = stage3 * ja_Ms;
 
     // Stage 4: De-emphasis only (no head bump for Pluck)
     float deOut = deB0 * stage3 + deB1 * deX1 - deA1 * deY1;
     deX1 = stage3;
     deY1 = deOut;
 
-    return dry + mixVal * (deOut - dry);
+    // DC blocker — strips the DC offset put on the signal by the asymmetric
+    // CP3 clip (stage 1). Without this, a symmetric input (Pulse/Square)
+    // exits the driver with a few-percent DC bias that becomes audible as
+    // a sub-audio pop when the amp VCA opens it from silence.
+    // Standard 1st-order DC-blocker: y[n] = x[n] - x[n-1] + R*y[n-1]
+    float wet = deOut - dcX1 + DC_BLOCK_R * dcY1;
+    dcX1 = deOut;
+    dcY1 = wet;
+
+    return dry + mixVal * (wet - dry);
 }

@@ -23,6 +23,11 @@ public:
     void prepare(double sampleRate, int blockSize);
     void reset();
 
+    /** Reset only the three wavetable read phases (not noise generator state).
+     *  Call on every non-legato note-on so the new note starts at phase 0 on
+     *  every osc — eliminates the random-phase-at-onset pop. */
+    void resetPhases();
+
     struct OscOutput
     {
         float osc1  = 0.0f;

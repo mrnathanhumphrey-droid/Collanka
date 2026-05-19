@@ -21,6 +21,19 @@ void OscillatorBank::reset()
     lastOsc3Value = 0.0f;
 }
 
+void OscillatorBank::resetPhases()
+{
+    // Phase-only reset: clears the read position in all three Collatz
+    // wavetable oscillators so a new note starts at frame index 0,
+    // eliminating the click that comes from the first sample being
+    // whatever value the wavetable held at the previous note's release
+    // phase. Noise generator state is intentionally untouched so the
+    // pink/white character is continuous across note boundaries.
+    osc1.reset();
+    osc2.reset();
+    osc3.reset();
+}
+
 double OscillatorBank::rangeToMultiplier(int rangeIndex)
 {
     switch (rangeIndex)

@@ -86,6 +86,15 @@ void SynthEngine::handleNoteOn(int noteNumber, float velocity)
         // Trigger envelopes on non-legato notes
         filterEnvelope.noteOn(velocity);
         ampEnvelope.noteOn(velocity);
+
+        // Click fix: clear filter biquad state + reset all oscillator phases
+        // on every non-legato note-on. Without this, stale filter state
+        // rings audibly when the next note's first sample arrives, and a
+        // random wavetable read position produces an audible pop because
+        // the first sample is whatever value the wavetable had at the
+        // previous note's release phase.
+        filter.reset();
+        oscillatorBank.resetPhases();
     }
 
     // Always trigger pitch envelope on every new note (for 808 punch / pluck snap)

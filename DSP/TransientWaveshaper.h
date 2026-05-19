@@ -66,6 +66,14 @@ private:
     float deB0 = 1.0f, deB1 = 0.0f, deA1 = 0.0f;
     float deX1 = 0.0f, deY1 = 0.0f;
 
+    // DC blocker on the wet output. CP3 asymmetric clip (alpha=2 vs
+    // beta=1.44) puts ~5-8% DC offset on a symmetric input. When the VCA
+    // opens that DC gets multiplied by an attacking envelope ramp →
+    // audible sub-audio thump on every note-on.
+    // R = exp(-2*pi*fc/sr); fc ~= 35 Hz at 44.1 kHz gives R ~= 0.995.
+    float dcX1 = 0.0f, dcY1 = 0.0f;
+    static constexpr float DC_BLOCK_R = 0.995f;
+
     struct Smooth
     {
         float current = 0.0f, target = 0.0f, coeff = 0.999f;

@@ -27,8 +27,18 @@ void SubHarmonicExciter::setMix(float v)         { mixSm.set(std::max(0.0f, std:
 
 void SubHarmonicExciter::triggerOnset()
 {
-    M_prev *= 0.1f;
-    H_prev *= 0.1f;
+    // Full state clear on note-on. Same rationale as TransientWaveshaper's
+    // triggerOnset(): the render loop is gated by noteActive, so any state
+    // left in pre/de-emphasis filters or the head-bump biquad freezes mid-
+    // decay between notes and rings audibly when the next note's first
+    // sample arrives. The previous 10% JA bleed left preX/preY/deX/deY and
+    // the entire bumpX/bumpY chain stale — visible as a "mechanical pop".
+    M_prev = 0.0f;
+    H_prev = 0.0f;
+    preX1 = preY1 = 0.0f;
+    deX1 = deY1 = 0.0f;
+    bumpX1 = bumpX2 = 0.0f;
+    bumpY1 = bumpY2 = 0.0f;
     onsetSamples = ONSET_RAMP_SAMPLES;
 }
 
@@ -99,11 +109,24 @@ float SubHarmonicExciter::processSample(float input)
     ja_a = std::max(0.5f, ja_a);
     bumpAmountVal = bumpVal;
 
-    float dry = input;
+    // Smoothstep onset ramp on the driver INPUT (same fix as
+    // TransientWaveshaper in v3.0.14): gates the input upstream of pre-
+    // emphasis so the +6dB shelf doesn't step-respond on sample 0. The
+    // shelf's b0 ≈ 1.96 produces a near-2x burst from a step input, which
+    // is broadcast as a high-frequency transient through tanh and the
+    // head-bump biquad — perceived as "feedback/mic-pop" at note-on.
+    float progress = (onsetSamples > 0)
+        ? 1.0f - static_cast<float>(onsetSamples) / static_cast<float>(ONSET_RAMP_SAMPLES)
+        : 1.0f;
+    if (onsetSamples > 0) --onsetSamples;
+    float onsetRamp = progress * progress * (3.0f - 2.0f * progress);
+
+    float gatedInput = input * onsetRamp;
+    float dry = gatedInput;
 
     // Stage 1: Even-order polynomial soft shaper (symmetric — no DC offset)
     // f(x) = x / (1 + α|x|) — generates even harmonics via amplitude-dependent gain
-    float x = input * polyDrive;
+    float x = gatedInput * polyDrive;
     float stage1 = x / (1.0f + polyAlpha * std::abs(x));
 
     // Stage 2: Pre-emphasis
@@ -111,23 +134,12 @@ float SubHarmonicExciter::processSample(float input)
     preX1 = stage1;
     preY1 = preOut;
 
-    // Stage 3: Softened JA hysteresis (ja_k = 0.2, lower than tape's 0.5)
-    float onsetRamp = (onsetSamples > 0)
-        ? 1.0f - static_cast<float>(onsetSamples) / static_cast<float>(ONSET_RAMP_SAMPLES)
-        : 1.0f;
-    if (onsetSamples > 0) --onsetSamples;
-
-    float H = preOut * ja_inputGain * onsetRamp;
-    float dH = H - H_prev;
-    float delta = (dH >= 0.0f) ? 1.0f : -1.0f;
-    float Man = ja_Ms * std::tanh(H / ja_a);
-    float denom = ja_k * delta + 1.0e-6f;
-    float dM = (Man - M_prev) / denom;
-    float M = M_prev + dM * ja_dt;
-    M = std::max(-ja_Ms * 1.5f, std::min(ja_Ms * 1.5f, M));
-    M_prev = M;
+    // Stage 3: anhysteretic curve (JA integration collapsed in v3.0.13 —
+    // see git history). Onset ramp is now upstream of pre-emphasis.
+    float H = preOut * ja_inputGain;
+    float stage3 = std::tanh(H / ja_a);
     H_prev = H;
-    float stage3 = M / ja_Ms;
+    M_prev = stage3 * ja_Ms;
 
     // Stage 4: De-emphasis + head bump
     float deOut = deB0 * stage3 + deB1 * deX1 - deA1 * deY1;
