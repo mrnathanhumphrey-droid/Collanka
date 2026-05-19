@@ -11,7 +11,7 @@ add_subdirectory(JUCE)
 # headless CI). Set -DBUILD_AU=OFF on CI; keep ON for local Mac dev
 # builds where Logic Pro AU support is wanted.
 option(BUILD_AU "Build Audio Unit plugin format (macOS only)" ON)
-set(PLUGIN_FORMATS VST3 Standalone)
+set(PLUGIN_FORMATS VST3)
 if(BUILD_AU AND APPLE)
     list(APPEND PLUGIN_FORMATS AU)
 endif()
